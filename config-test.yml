@@ -1,2 +1,2 @@
-server:
-  port: 3377
+config:
+  info: testtesttesttest
