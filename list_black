@@ -1,0 +1,137 @@
+  /*
+       匹配黑名单里的数据进行过滤
+        */
+//    public static   void match() {
+//        try{
+//            List<List<String>> list_Black = readFileByLines(new File("/Users/fanjiapeng/Downloads/text_5.txt")); //取得黑名单的数据
+//            List<AllDataBaseReview.UserWapper> list_save = getAllData();//取得数据库数据
+//            List<AllDataBaseReview.UserWapper> ReLists = new LinkedList<>();//存放匹配过黑名单的数据
+//            UserService userService = CUBeanFactory.getBean(UserService.class);
+//            //循环数据库人员校验
+//            list_save.stream().forEach(e -> {
+//                list_Black.stream().forEach(r -> {//循环黑名单****
+//                    String DataUserIdNumber = (String) e.getValue(AllDataBaseReview.Keys.NUMBER);//数据库中的人的身份证号
+//                    String IdNumberHead = DataUserIdNumber.substring(0, 6);//身份证前几位
+//                    String IdNumberTail = DataUserIdNumber.substring(DataUserIdNumber.length() - 4);//身份证后几位
+//                    if (StringUtils.contains(IdNumberHead, r.get(1)) && StringUtils.contains(IdNumberTail, r.get(2))) //比对身份证
+//                    {
+//                        char[] name_char = r.get(0).toCharArray();
+//                        boolean flag = true;
+//                        if (r.get(0).length() != e.getValue(AllDataBaseReview.Keys.NAME).toString().length()) {
+//                            flag = false;
+//                        } else {
+//                            for (char n : name_char) {
+//                                if (n == '*') {
+//                                    continue;
+//                                }
+//                                Pattern patterns = Pattern.compile(String.valueOf(n)); //比对姓名
+//                                Matcher Matcher = patterns.matcher(e.getValue(AllDataBaseReview.Keys.NAME).toString());
+//                                if (!Matcher.find()) {
+//                                    flag = false;
+//                                }
+//                            }
+//                        }
+//                        if (flag) {
+//                            //包装类型
+//                            AllDataBaseReview.UserWapper u = new AllDataBaseReview.UserWapper();
+//                            u.setValue(AllDataBaseReview.Keys.ID, e.getValue(AllDataBaseReview.Keys.ID));
+//                            u.setValue(AllDataBaseReview.Keys.NAME, e.getValue(AllDataBaseReview.Keys.NAME));
+//                            u.setValue(AllDataBaseReview.Keys.NUMBER, e.getValue(AllDataBaseReview.Keys.NUMBER));
+//                            u.setValue(AllDataBaseReview.Keys.NICKNAME, userService.getById((Integer) e.getValue(AllDataBaseReview.Keys.ID)).getUsername());
+//                            ReLists.add(u);
+//                        }
+//                    }
+//                });     //结束循环黑名单****
+//            });
+//            for (AllDataBaseReview.UserWapper e : ReLists
+//            ) {
+//                logger.info(e.getValue(AllDataBaseReview.Keys.ID) + "." + e.getValue(AllDataBaseReview.Keys.NAME) + "." + e.getValue(AllDataBaseReview.Keys.NUMBER) + "." + e.getValue(AllDataBaseReview.Keys.NICKNAME));
+//            }
+//        }finally {
+//            System.exit(0);
+//        }
+//    }
+
+    /*
+       获取黑名单中的数据
+        */
+//    public static List<List<String>> readFileByLines(File f) {
+//        File file = f;
+//        BufferedReader reader = null;
+//        List<List<String>> list = new LinkedList<>();
+//        try {
+//            logger.info("以行为单位读取文件内容，一次读一整行：");
+//            reader = new BufferedReader(new FileReader(file));
+//            String tempString;
+//            int line = 1;
+//            // 一次读入一行，直到读入null为文件结束
+//            StringBuilder builder;
+//            while ((tempString = reader.readLine()) != null) {
+//                LinkedList<String> innerList = Lists.newLinkedList();
+//                // 显示行号
+//                String[] split = tempString.split("\t");
+//                //名字
+//                int i = split[1].lastIndexOf("*");//最后一个*的位置
+//                int i2 = split[1].indexOf("*");//最后一个*的位置
+//                String substringH = split[1].substring(0, i2);
+//                String substringF = split[1].substring(i + 1);
+//                innerList.add(split[0]);
+//                innerList.add(substringH);
+//                innerList.add(substringF);
+//                list.add(innerList);
+//                line++;
+//
+//            }
+//            reader.close();
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        } finally {
+//            if (reader != null) {
+//                try {
+//                    reader.close();
+//                } catch (IOException e1) {
+//                }
+//            }
+//        }
+//        return list;
+//    }
+//    /*
+//    获取数据库中的数据
+//     */
+//    public static List<AllDataBaseReview.UserWapper> getAllData()
+//    {
+//        List<List<String>> list_Black = readFileByLines(new File("/Users/fanjiapeng/Downloads/text_5.txt")); //取得黑名单的数据
+//        List<AllDataBaseReview.UserWapper> ReLists=new LinkedList<>();//存放匹配过黑名单的数据
+//        List<AllDataBaseReview.UserWapper> list_save=new LinkedList<>();//存放数据库中的数据
+//        UserCertDAO dao = CUBeanFactory.getBean(UserCertDAO.class);
+//        UserService userService = CUBeanFactory.getBean(UserService.class);
+//        AliyunCloudAuthResultDAO aliyunCloundAuthDao = CUBeanFactory.getBean(AliyunCloudAuthResultDAO.class);
+//        //取出aliyun--Success数据
+//        new CursorIterator<>((c, n) -> //取出数据库数据
+//                aliyunCloundAuthDao.findByStatus(AliyunCloudAuthStatus.Success, c, n)
+//                , null, 100, AliyunCloudAuthResult::getId)
+//                .stream()
+//                .filter(e -> e.getName() != null && e.getNumber() != null && !"".equals(e.getName()) && !"".equals(e.getNumber()))
+//                .forEach(e -> {
+//                    AllDataBaseReview.UserWapper user=new AllDataBaseReview.UserWapper();
+//                    user.setValue(AllDataBaseReview.Keys.ID, e.getUserId());
+//                    user.setValue(AllDataBaseReview.Keys.NAME, e.getName());
+//                    user.setValue(AllDataBaseReview.Keys.NUMBER, e.getNumber());
+//                    user.setValue(AllDataBaseReview.Keys.NICKNAME,userService.getById(e.getUserId()).getUsername());
+//                    list_save.add(user);
+//                });
+//
+//        //取出User_cert里的数据
+//        new CursorIterator<>((c, n) ->dao.findAll(c,n), 0, 1000, UserCert::getUserId).stream()
+//                .filter(e -> e.getName() != null && e.getIdNumber() != null && !e.getName().equals("") && !e.getIdNumber().equals(""))
+//                .forEach(e->{
+//                    AllDataBaseReview.UserWapper user=new AllDataBaseReview.UserWapper();
+//                    user.setValue(AllDataBaseReview.Keys.ID, e.getUserId());
+//                    user.setValue(AllDataBaseReview.Keys.NAME, e.getName());
+//                    user.setValue(AllDataBaseReview.Keys.NUMBER, e.getIdNumber());
+//                    user.setValue(AllDataBaseReview.Keys.NICKNAME,userService.getById(e.getUserId()).getUsername());
+//                    list_save.add(user);
+//                });
+//        return list_save;
+//    }
+
