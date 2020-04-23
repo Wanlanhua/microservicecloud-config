@@ -1,0 +1,117 @@
+
+
+public class accountCheckTest {
+    private AnchorWithdrawDAO anchorWithdrawDAO = CUBeanFactory.getBean(AnchorWithdrawDAO.class);
+    private AnchorWithdrawServiceImpl AnchorWithdrawservice = CUBeanFactory.getBean(AnchorWithdrawServiceImpl.class);
+    private EntityCollectionServiceImpl entityCollectionService = CUBeanFactory.getBean(EntityCollectionServiceImpl.class);
+    /**
+     *
+     * @param week 周
+     * @param userId 用户id
+     * @return 这一周的收益
+     */
+    private static String compute(Date week, final int userId) {
+        AnchorWithdrawService anchorWithdrawService = CUBeanFactory.getBean(AnchorWithdrawService.class);
+        String data = null;
+        StopWatch stopWatch = PerfHelper.getStopWatch("main");
+        try {
+            //将日期设置为当前周的周一
+            week = DateHelper.truncateWeek(week);
+
+            Date weekEnd = DateUtils.addDays(week, 7);
+
+            //查询用户签约时间
+            Date anchorSignDay = anchorWithdrawService.getAnchorSignDay(userId);
+
+            // 使用签约日期,不理解
+            Date liveShowStart = anchorSignDay.after(week) ? anchorSignDay : week;
+
+            List<LiveShow> liveShowList = anchorWithdrawService.findLiveShowByWeek(userId, liveShowStart, weekEnd);
+
+            //直播收益列表
+            List<LiveCommissionInfo> liveCommissionList = anchorWithdrawService.getLiveCommissionList(userId, liveShowList);
+
+            int sum = liveCommissionList.stream().mapToInt(LiveCommissionInfo::getAmountBeforeDeduct).sum();
+
+            // 黑卡分成部分
+            int sumInvalid = liveCommissionList.stream().mapToInt(LiveCommissionInfo::getInvalidAmountBeforeDeduct).sum();
+            sum -= sumInvalid;
+
+            // 扣除可提现余额
+            int cashDeduct = liveCommissionList.stream().mapToInt(LiveCommissionInfo::getAmount).sum();
+
+            // 签约类型
+            SignedAnchorType type = anchorWithdrawService.getSignedAnchorType(userId);
+            // 分->元
+            TwoTuple<Float, String> commission = WithdrawHelper.getCommission(sum / 100.0f, type);
+            data = new DataAttributeBuilder()
+                    .add(AnchorWithdraw.KEY_AMOUNT_BEFORE_DEDUCT, sum)
+                    .add(AnchorWithdraw.KEY_INVALID_GIFT_DEDUCT, sumInvalid)
+                    .add(AnchorWithdraw.KEY_FORMULA, commission.getSecond())
+                    .add(AnchorWithdraw.KEY_LIVE_COUNT, liveShowList.size())
+                    .add(AnchorWithdraw.KEY_LIVE_SECONDS, liveCommissionList.stream().mapToInt(LiveCommissionInfo::getSeconds).sum())
+                    .add(AnchorWithdraw.KEY_BALANCE_CASH_DEDUCT, cashDeduct)
+                    .buildString();
+        } finally {
+            stopWatch.stop();
+        }
+        return data;
+    }
+
+    /**
+     * 获得签约主播
+     * @return Tuple2<Long, Date>: Long:entity_id,Date:签约日期
+     */
+    public List<Tuple2<Long, Date>> AnchorDataGet() {
+        List<Tuple2<Long, Date>> resList = new ArrayList<>();
+        Stream<List<EntityCollectionIndex>> stream1 = Stream.of(entityCollectionService.getEntityIndex(CUConstants.COOPERATION_USER_LIST));
+        Stream<List<EntityCollectionIndex>> stream2 = Stream.of(entityCollectionService.getEntityIndex(CUConstants.SIGNED_ANCHOR_LIST_201706));
+        Stream.concat(stream1, stream2).filter(l->!l.isEmpty()).forEach(e -> e.stream().forEach(v -> {
+            resList.add(new Tuple2<>(v.getEntityId(), AnchorWithdrawservice.getAnchorSignDay((int) v.getEntityId())));
+        }));
+        return resList;
+    }
+
+    /**
+     * 汇总每周的收益
+     * @param signedDate 签约日期
+     * @param nowDate 目前时间
+     * @param userId 用户id
+     * @return 一个用户从签约到现在的每周的收益
+     */
+    public List<String>  totalCash(Date signedDate, Date nowDate, int userId) {
+        List<String> resList=new ArrayList<>();
+        while (signedDate.before(nowDate)) {
+            String compute = compute(signedDate, userId);
+            if(StringUtils.isBlank(compute)){break;}
+            resList.add(compute+userId);
+            signedDate = DateUtils.addWeeks(signedDate, 1);
+        }
+        return  resList;
+    }
+
+
+    public void csvShow(List<String> strings)
+    {
+        strings.stream().forEach(e->System.out.println(e));
+        String s = strings.get(0);
+        Map map = JSONCodec.decode(s, Map.class);
+        Object o = map.get(AnchorWithdraw.KEY_AMOUNT_BEFORE_DEDUCT);
+        System.out.println(o+"result");
+    }
+
+    public static void main(String[] args) throws ParseException {
+        try {
+            accountCheckTest a=new accountCheckTest();
+            SimpleDateFormat sdf1=new SimpleDateFormat("yyyy-MM-dd");
+            Date nowDate=sdf1.parse("2020-04-23");
+            //取得签约用户
+            List<Tuple2<Long, Date>> list = a.AnchorDataGet();
+            list.stream().map(e -> a.totalCash(e._2, nowDate, e._1.intValue())).filter(l->l.size()>0).forEach(q->a.csvShow(q));
+        } catch (Throwable e) {
+            e.printStackTrace();
+        } finally {
+            System.exit(0);
+        }
+    }
+}
